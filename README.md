@@ -1,4 +1,4 @@
-# MFULI
+# Improving Large-scale Classification in Technology Management: Making Full Use of Label Information for Professional Technical Documents
 ## 使用依赖
 ```python
 python ==3.6

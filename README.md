@@ -22,5 +22,4 @@ WIPO-alpha: Available at: https://www.wipo.int/classifications/ipc/en/ITsupport/
 --loss.py：损失函数实现
 --models.py：模型网络结构代码
 --train.py：主运行程序，包含训练、测试以及相关评价指标的计算
---bert-base-uncase:要预先下载好预训练的bert模型，放在和该项目同级下的bert-base-uncase文件夹下,需要的是vocab.txt、config.json、pytorch_model.bin
 ```

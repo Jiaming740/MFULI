@@ -1,21 +1,15 @@
-# -*- coding:utf-8 -*-
 import os
 import torch
-import torch.nn as nn
-from torch.utils.data import TensorDataset, DataLoader, RandomSampler
 from dataset import load_data
-from transformers import AutoTokenizer, AutoModel
-from tqdm import tqdm, trange
-import random
+from transformers import AutoTokenizer
+from tqdm import trange
 import argparse
 import numpy as np
 import json
-import matplotlib.pyplot as plt
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score, hamming_loss
-from models import ContrastBert
+from models import ContrastBert, load_model
 import logging
 import warnings
-
 
 warnings.filterwarnings("ignore")
 SEED = 123
@@ -36,6 +30,56 @@ dep_labels = ["acl", "acomp", "advcl", "advmod", "agent", "amod", "appos", "attr
               "pcomp", "pobj", "poss", "possessive", "preconj", "prep", "prt", "punct", "quantmod", "rcmod", "relcl",
               "reparandum", "root", "vocative", "xcomp"]
 
+def Validation_test(model, test_dataloader, device, hierarchy, top_ks=[1, 5, 10]):
+    model.eval()
+    # Tracking variables
+    nb_test_steps = 0
+    all_preds = []
+    all_targets = []
+    top_k_preds = {k: [] for k in top_ks}
+    Loss = 0.0
+    for inputs, targets, labels_desc_ids, dep_type_matrix in test_dataloader:
+        inputs = {k: v.to(device) for k, v in inputs.items()}
+        targets = targets.to(device)
+        labels_desc_ids = {k: v.to(device) for k, v in labels_desc_ids.items()}
+        dep_type_matrix = dep_type_matrix.to(device)
+        with torch.no_grad():
+            logits, loss, _ = model(inputs, labels=targets, labels_desc_ids=labels_desc_ids, dep_type_matrix=dep_type_matrix, hierarchy=hierarchy)
+        # Move logits and labels to CPU
+        outputs = torch.sigmoid(logits).cpu().detach().numpy()
+        outputs_binary = (outputs > 0.5).astype(int)
+
+        for k in top_ks:
+            top_k_output = np.argsort(outputs, axis=1)[:, -k:]
+            top_k_preds[k].extend(top_k_output.tolist())
+
+        all_preds.extend(outputs_binary.tolist())
+        all_targets.extend(targets.cpu().detach().numpy().tolist())
+        Loss += loss.item()
+        nb_test_steps += 1
+
+    return Loss / nb_test_steps, all_preds, all_targets, top_k_preds
+
+def get_metrics(targets, outputs, top_k_preds, top_ks=[1, 5, 10]):
+    accuracy = accuracy_score(targets, outputs)
+    ham_loss = hamming_loss(targets, outputs)
+    micro_precision = precision_score(targets, outputs, average='micro')
+    micro_recall = recall_score(targets, outputs, average='micro')
+    micro_f1 = f1_score(targets, outputs, average='micro')
+    macro_f1 = f1_score(targets, outputs, average='macro')
+    macro_precision = precision_score(targets, outputs, average='macro')
+    macro_recall = recall_score(targets, outputs, average='macro')
+
+    top_k_accuracies = {}
+    for k in top_ks:
+        top_k_accuracy = 0
+        for i in range(len(targets)):
+            top_k_set = set(top_k_preds[k][i])
+            target_set = set(np.nonzero(targets[i])[0])
+            top_k_accuracy += len(top_k_set & target_set) > 0
+        top_k_accuracies[k] = top_k_accuracy / len(targets)
+
+    return accuracy, micro_f1, macro_f1, macro_precision, macro_recall, micro_precision, micro_recall, ham_loss, top_k_accuracies
 
 def main(args):
     logger.info(f"hyper-parameters:{args}")
@@ -47,7 +91,6 @@ def main(args):
         device = torch.device("cpu")
     args.dep_type_num = len(dep_labels)
     label_dict = json.load(open(os.path.join(args.data_dir, 'label_to_id.json'), 'r', encoding='utf-8'))
-    # label_list = list(label_dict.keys())
     save_mode = f"bert_{args.loss_type}.bin"
     if args.Contrast:
         save_mode = 'Contrast_' + save_mode
@@ -57,11 +100,17 @@ def main(args):
         save_mode = 'LabelEmbedding_' + save_mode
 
     tokenizer = AutoTokenizer.from_pretrained(args.pretrained_model_path)
-    model = ContrastBert(config=args)
-    model.to(device)
+    model = ContrastBert(config=args, similarity='jaccard').to(device)
+
+
     pre_model = os.path.join(args.output_dir, save_mode)
+    try:
+        load_model(model, pre_model, device, strict=False)
+    except RuntimeError as e:
+        print(f"RuntimeError: {e}")
+
     if os.path.exists(pre_model) and args.pre_trained:
-        model.load_state_dict(torch.load(pre_model, map_location=device))
+        model.load_state_dict(torch.load(pre_model, map_location=device), strict=False)
     bert_optimizer = list(model.named_parameters())
     no_decay = ['bias', 'gamma', 'beta']
     optimizer_grouped_parameters = [
@@ -74,8 +123,8 @@ def main(args):
 
     """train and save model"""
     if args.do_train:
-        train_dataloader = load_data(mode="train", tokenizer=tokenizer, label_dict=label_dict, args=args)
-        dev_dataloader = load_data(mode="dev", tokenizer=tokenizer, label_dict=label_dict, args=args)
+        train_dataloader, hierarchy = load_data(mode="train", tokenizer=tokenizer, label_dict=label_dict, args=args)
+        dev_dataloader, _ = load_data(mode="dev", tokenizer=tokenizer, label_dict=label_dict, args=args)
         logger.info("***** Running train *****")
         """start training"""
         val_f1 = 0.0
@@ -92,10 +141,10 @@ def main(args):
                 labels_desc_ids = {k: v.to(device) for k, v in labels_desc_ids.items()}
                 dep_type_matrix = dep_type_matrix.to(device)
                 optimizer.zero_grad()
-                logits, loss, _ = model(inputs, targets, labels_desc_ids, dep_type_matrix=dep_type_matrix)
+                logits, loss, _ = model(inputs, labels=targets, labels_desc_ids=labels_desc_ids, dep_type_matrix=dep_type_matrix, hierarchy=hierarchy)
                 loss.backward()
                 optimizer.step()
-                tr_loss += loss
+                tr_loss += loss.item()  # 确保是标量
                 tr_steps += 1
                 if tr_steps % 500 == 0:
                     logger.info("【train】Epoch:{}, Train_Step={}, Total_Train_Step={}, Train loss: {:.6f}".format(num_epoch,
@@ -104,9 +153,9 @@ def main(args):
                                                                                                              tr_loss / tr_steps))
                 if tr_steps % 500 == 0:
                     """evaluation model"""
-                    dev_loss, dev_outputs, dev_targets = Validation_test(model, dev_dataloader, device)
-                    accuracy, micro_f1, macro_f1, macro_precision, macro_recall, micro_precision, micro_recall,ham_loss = get_metrics(
-                        dev_targets, dev_outputs)
+                    dev_loss, dev_outputs, dev_targets, dev_top_k_preds = Validation_test(model, dev_dataloader, device, hierarchy=hierarchy)
+                    accuracy, micro_f1, macro_f1, macro_precision, macro_recall, micro_precision, micro_recall, ham_loss, top_k_accuracies = get_metrics(
+                        dev_targets, dev_outputs, dev_top_k_preds)
                     logger.info(
                         "【dev】 ham_loss：{:.6f} micro_precision：{:.4f} micro_recall：{:.4f} micro_f1：{:.4f}".format(
                             ham_loss,
@@ -119,6 +168,8 @@ def main(args):
                             macro_precision,
                             macro_recall,
                             macro_f1))
+                    for k, top_k_accuracy in top_k_accuracies.items():
+                        logger.info("【dev】 Top-{} accuracy：{:.4f}".format(k, top_k_accuracy))
                     if micro_f1 > val_f1:
                         val_f1 = micro_f1
                         """save model"""
@@ -129,65 +180,42 @@ def main(args):
     logger.info("***** training ends *****")
     if args.do_test:
         model_file = os.path.join(args.output_dir, save_mode)
-        model.load_state_dict(torch.load(model_file))
+        model.load_state_dict(torch.load(model_file), strict=False)
         logger.info("***** Running evaluation *****")
         """load data"""
-        test_dataloader = load_data(mode="test", tokenizer=tokenizer, label_dict=label_dict, args=args)
-        test_loss, test_outputs, test_targets = Validation_test(model, test_dataloader, device)
-        accuracy, micro_f1, macro_f1, macro_precision, macro_recall, micro_precision, micro_recall, ham_loss = get_metrics(
-            test_targets, test_outputs)
+        test_dataloader, hierarchy = load_data(mode="test", tokenizer=tokenizer, label_dict=label_dict,
+                                               args=args)
+        test_loss, test_outputs, test_targets, test_top_k_preds = Validation_test(model, test_dataloader,
+                                                                                  device,
+                                                                                  hierarchy=hierarchy)
+
+        accuracy, micro_f1, macro_f1, macro_precision, macro_recall, micro_precision, micro_recall, ham_loss, top_k_accuracies = get_metrics(
+            test_targets, test_outputs, test_top_k_preds)
         logger.info(
-            "【test】 ham_loss：{:.6f} micro_precision：{:.4f} micro_recall：{:.4f} micro_f1：{:.4f}".format(ham_loss,
-                                                                                                   micro_precision,
-                                                                                                   micro_recall,
-                                                                                                   micro_f1))
+            "【test】 ham_loss：{:.6f} micro_precision：{:.4f} micro_recall：{:.4f} micro_f1：{:.4f}".format(
+                ham_loss,
+                micro_precision,
+                micro_recall,
+                micro_f1))
         logger.info(
-            "【test】accuracy：{:.4f} macro_precision：{:.4f} macro_recall：{:.4f} macro_f1：{:.4f}".format(accuracy,
-                                                                                                      macro_precision,
-                                                                                                      macro_recall,
-                                                                                                      macro_f1))
+            "【test】accuracy：{:.4f} macro_precision：{:.4f} macro_recall：{:.4f} macro_f1：{:.4f}".format(
+                accuracy,
+                macro_precision,
+                macro_recall,
+                macro_f1))
+        for k, top_k_accuracy in top_k_accuracies.items():
+            logger.info("【test】 Top-{} accuracy：{:.4f}".format(k, top_k_accuracy))
+
     logger.info("***** evaluation ends *****")
 
 
-def Validation_test(model, test_dataloader, device):
-    model.eval()
-    # Tracking variables
-    nb_test_steps = 0
-    all_preds = []
-    all_targets = []
-    Loss = 0.0
-    for inputs, targets, labels_desc_ids, dep_type_matrix in test_dataloader:
-        inputs = {k: v.to(device) for k, v in inputs.items()}
-        targets = targets.to(device)
-        labels_desc_ids = {k: v.to(device) for k, v in labels_desc_ids.items()}
-        dep_type_matrix = dep_type_matrix.to(device)
-        with torch.no_grad():
-            logits, loss, _ = model(inputs, labels=targets, labels_desc_ids=labels_desc_ids, dep_type_matrix=dep_type_matrix)
-        # Move logits and labels to CPU
-        outputs = torch.sigmoid(logits).cpu().detach().numpy().tolist()
-        outputs = (np.array(outputs) > 0.5).astype(int)
-        all_preds.extend(outputs.tolist())
-        all_targets.extend(targets.cpu().detach().numpy().tolist())
-        Loss += loss
-        nb_test_steps += 1
-    return Loss / nb_test_steps, all_preds, all_targets
-
-
-def get_metrics(targets, outputs):
-    accuracy = accuracy_score(targets, outputs)
-    ham_loss = hamming_loss(targets, outputs)
-    micro_precision = precision_score(targets, outputs, average='micro')
-    micro_recall = recall_score(targets, outputs, average='micro')
-    micro_f1 = f1_score(targets, outputs, average='micro')
-    macro_f1 = f1_score(targets, outputs, average='macro')
-    macro_precision = precision_score(targets, outputs, average='macro')
-    macro_recall = recall_score(targets, outputs, average='macro')
-    return accuracy, micro_f1, macro_f1, macro_precision, macro_recall, micro_precision, micro_recall,ham_loss
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--data_dir", default='./data/', type=str,
+                        help="The input data dir. Should contain the .tsv files (or other data files) for the task.")
+    parser.add_argument("--hierarchy_path", default='./data/Hierarchical_label.csv', type=str,
                         help="The input data dir. Should contain the .tsv files (or other data files) for the task.")
     parser.add_argument("--pretrained_model_path", default='bert-base-uncased', type=str,
                         help="Choose bert mode which you need(.bin).")
@@ -196,20 +224,19 @@ if __name__ == '__main__':
     parser.add_argument("--max_seq_length", default=256, type=int, help="max words length")
     parser.add_argument("--batch_size", default=8, type=int, help="train batch size")
     parser.add_argument("--epochs", default=6, type=int, help="run epochs ")
-    parser.add_argument("--lr", default=2e-5, type=float, help="learning rate")
+    parser.add_argument("--lr", default=1e-5, type=float, help="learning rate")
     parser.add_argument("--do_train", default=True, action='store_true', help="train mode")
     parser.add_argument("--do_test", default=True, action='store_true', help="test mode")
     parser.add_argument("--num_labels", default=62, type=int, help="total labels")
     parser.add_argument('--dropout_prob', default=0.2, type=float, help='drop out probability')
-    parser.add_argument("--num_gcn_layers", default=2, type=int, help="layer")
+    parser.add_argument("--num_gcn_layers", default=0, type=int, help="layer")
     parser.add_argument("--embedding_size", default=768, type=int, help="embedding size")
     parser.add_argument("--weight_decay", default=0.00005, type=int, help="weight_decay")
-    parser.add_argument('--loss_type', default='FL', type=str, help='FL,CE')
+    parser.add_argument('--loss_type', default='CE', type=str, help='FL,CE')
     parser.add_argument('--Contrast', default=True, type=bool, help='Contrastive Learning')
     parser.add_argument('--GCN', default=False, type=bool, help='GCN of dep')
     parser.add_argument('--LabelEmbedding', default=True, type=bool, help='LabelEmbedding')
     parser.add_argument('--pre_trained', default=True, type=bool, help='load pre_trained model')
     parser.add_argument('--temp', type=float, default=300, help='temperature for loss function')
-    parser.add_argument('--alpha', type=float, default=2, help='alpha for contrast loss function')
     args = parser.parse_args()
     main(args)

@@ -1,8 +1,6 @@
-from transformers import BertModel,BertConfig
 import torch.nn as nn
 import torch
-import torch.nn.functional as F
-from transformers import AutoTokenizer, AutoModel
+from transformers import AutoModel
 from losses import BCEFocalLoss, HMLC
 from GCN import GraphConvolution
 import math
@@ -46,7 +44,7 @@ def get_attention(val_out, dep_embed, adj):
 
 
 class ContrastBert(nn.Module):
-    def __init__(self, config):
+    def __init__(self, config, similarity='jaccard'):
         super(ContrastBert, self).__init__()
         self.config = config
         self.bert = AutoModel.from_pretrained(config.pretrained_model_path)
@@ -56,26 +54,25 @@ class ContrastBert(nn.Module):
             self.gcn_mode = GraphConvolution(config.embedding_size, config.embedding_size)
             self.gcn_layer = nn.ModuleList([copy.deepcopy(self.gcn_mode) for _ in range(config.num_gcn_layers)])
             self.fc_layer = nn.Linear(self.bert.config.to_dict()['hidden_size']*2, self.bert.config.to_dict()['hidden_size'])
-        if config.loss_type=='CE':
+        if config.loss_type == 'CE':
             self.criterion = nn.BCEWithLogitsLoss()
         else:
             self.criterion = BCEFocalLoss()
-        self.contrastive_criterion = HMLC(config, layer_penalty=torch.exp)
+        self.contrastive_criterion = HMLC(config, hierarchy_path=config.hierarchy_path, similarity=similarity)
         self.fc = nn.Linear(self.bert.config.to_dict()['hidden_size'], config.num_labels)
 
-    def forward(self, inputs, labels=None, labels_desc_ids=None, dep_type_matrix=None):
+    def forward(self, inputs, labels=None, labels_desc_ids=None, dep_type_matrix=None, hierarchy=None):
         raw_outputs = self.bert(**inputs)
         sequence_output = raw_outputs.last_hidden_state
         text_cls = sequence_output[:, 0, :]  # 取CLS的特征向量
+        device = sequence_output.device
         if self.config.GCN and dep_type_matrix is not None:
             dep_type_embedding_outputs = self.dep_type_embedding(dep_type_matrix)
             dep_adj_matrix = torch.clamp(dep_type_matrix, 0, 1)
             words_output = sequence_output
             for i, gcn_layer_module in enumerate(self.gcn_layer):
-                attention_score = get_attention(words_output, dep_type_embedding_outputs,
-                                                dep_adj_matrix)
-                words_output = gcn_layer_module(words_output, attention_score,
-                                                   dep_type_embedding_outputs)
+                attention_score = get_attention(words_output, dep_type_embedding_outputs, dep_adj_matrix)
+                words_output = gcn_layer_module(words_output, attention_score, dep_type_embedding_outputs)
             words_output = words_output.mean(dim=1)
             pooled_output = torch.cat([text_cls, words_output], dim=-1)
             pooled_output = self.fc_layer(pooled_output)
@@ -86,9 +83,7 @@ class ContrastBert(nn.Module):
         if labels is not None:
             loss = self.criterion(logits, labels)
             if self.config.Contrast:
-                contrastive_loss = self.contrastive_criterion(text_cls, labels)
-                # print('contrastive_loss:',contrastive_loss)
-                # print('loss:', loss)
+                contrastive_loss = self.contrastive_criterion(sequence_output.to(device), labels.to(device))
                 loss += contrastive_loss
             if self.config.LabelEmbedding and labels_desc_ids is not None:
                 labels_outputs = self.bert(**labels_desc_ids)
@@ -96,11 +91,29 @@ class ContrastBert(nn.Module):
                 labels_cls = labels_hiddens[:, 0, :]
                 mask = inputs['attention_mask']
                 attention = SelfAttention(dropout=0.2)
-                output, attn = attention(sequence_output, labels_cls.unsqueeze(1), sequence_output, mask=mask)
+                output, attn = attention(sequence_output, labels_cls.unsqueeze(1).to(device), sequence_output, mask=mask)
                 sample_logits = self.fc(self.dropout(output))
                 sample_loss = self.criterion(sample_logits, labels)
-                loss += 0.1*sample_loss
-        else:
-            loss = 0.0
+                loss += 0.1 * sample_loss
+            return logits, loss, pooled_output
+        return logits, 0.0
 
-        return logits, loss, pooled_output
+
+def load_model(model, pre_model_path, device, strict=False):
+    pretrained_dict = torch.load(pre_model_path, map_location=device)
+    model_dict = model.state_dict()
+
+    # 过滤掉不匹配的键
+    filtered_pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict}
+    not_loaded_keys = set(pretrained_dict.keys()) - set(filtered_pretrained_dict.keys())
+
+    print(f"Keys not loaded: {not_loaded_keys}")
+
+    # 更新现有的 state dict
+    model_dict.update(filtered_pretrained_dict)
+
+    # 加载新的 state dict
+    model.load_state_dict(model_dict, strict=strict)
+
+
+

@@ -13,14 +13,14 @@ WIPO-alpha: Available at: https://www.wipo.int/classifications/ipc/en/ITsupport/
 ```
 
 ## 相关说明
-```--output：存放保存的模型<br>
---data/process_data：存放训练数据<br>
---data/data_analysis.py：训练数据统计分析脚本<br>
---data/labels_data_proc.py：标签数据预处理<br>
---data/data_proc.py：原始数据清洗过滤，构造训练数据集<br>
---dataset.py：数据预处理成bert所需要的格式<br>
---loss.py：损失函数实现<br>
---models.py：模型网络结构代码<br>
---train.py：主运行程序，包含训练、测试以及相关评价指标的计算<br>
+```--output：存放保存的模型
+--data/process_data：存放训练数据
+--data/data_analysis.py：训练数据统计分析脚本
+--data/labels_data_proc.py：标签数据预处理
+--data/data_proc.py：原始数据清洗过滤，构造训练数据集
+--dataset.py：数据预处理成bert所需要的格式
+--loss.py：损失函数实现
+--models.py：模型网络结构代码
+--train.py：主运行程序，包含训练、测试以及相关评价指标的计算
 --bert-base-uncase:要预先下载好预训练的bert模型，放在和该项目同级下的bert-base-uncase文件夹下,需要的是vocab.txt、config.json、pytorch_model.bin
 ```

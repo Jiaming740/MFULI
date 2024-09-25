@@ -1,10 +1,8 @@
 # coding=utf-8
-import sys
+
 import re
-from sklearn.utils import shuffle
 import pandas as pd
 import os
-import json
 import torch
 from functools import partial
 from torch.utils.data.sampler import Sampler
@@ -15,10 +13,31 @@ from dep_parser import *
 nlp = spacy.load("en_core_web_sm")
 
 
+def load_hierarchy(hierarchy_path):
+    hierarchy_df = pd.read_csv(hierarchy_path, encoding='utf-8')
+    hierarchy = {}
+
+    def add_node(section, class_, subclass):
+        if section not in hierarchy:
+            hierarchy[section] = {'parent': None, 'depth': 1}
+        if class_ not in hierarchy:
+            hierarchy[class_] = {'parent': section, 'depth': 2}
+        if subclass not in hierarchy:
+            hierarchy[subclass] = {'parent': class_, 'depth': 3}
+
+    for _, row in hierarchy_df.iterrows():
+        section = row['Section']
+        class_ = row['Class']
+        subclass = row['Subclass']
+        add_node(section, class_, subclass)
+    return hierarchy
+
 def load_data(mode, tokenizer, label_dict, args):
     collate_fn = partial(my_collate, tokenizer=tokenizer, args=args)
     desc_path = os.path.join(args.data_dir, 'Hierarchical_label.csv')
     label_description_df = pd.read_csv(desc_path, encoding='utf-8')
+    hierarchy = load_hierarchy(args.hierarchy_path)  # 加载层次结构
+
     if mode == 'train':
         file_path = os.path.join(args.data_dir, 'process_data', 'train.tsv')
         data_df = pd.read_csv(file_path, encoding='utf-8')
@@ -34,14 +53,14 @@ def load_data(mode, tokenizer, label_dict, args):
         dataset = MyDataset(data_df, label_dict, args, label_description=label_description_df)
         dataloader = DataLoader(dataset, batch_size=args.batch_size, collate_fn=collate_fn)
     elif mode == 'dev':
-        file_path = os.path.join(args.data_dir, 'process_data', 'test.tsv')
+        file_path = os.path.join(args.data_dir, 'process_data', 'dev.tsv')
         data_df = pd.read_csv(file_path, encoding='utf-8')
         dataset = MyDataset(data_df, label_dict, args, label_description=label_description_df)
-        dataloader = DataLoader(dataset, batch_size=args.batch_size,  collate_fn=collate_fn)
+        dataloader = DataLoader(dataset, batch_size=args.batch_size, collate_fn=collate_fn)
     else:
         raise ValueError('unknown mode')
 
-    return dataloader
+    return dataloader, hierarchy
 
 
 class HierarchicalBatchSampler(Sampler):

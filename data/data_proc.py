@@ -1,11 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 import os
-import numpy as np
 import pandas as pd
 import json
 from collections import Counter
-import re
 
 def main():
     path = './uspto-release'

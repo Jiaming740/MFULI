@@ -16,6 +16,7 @@ WIPO-alpha: Available at: https://www.wipo.int/classifications/ipc/en/ITsupport/
 ```
 ├── data/                        # Directory for data-related scripts and files
 │   ├── process_data/            # Directory containing the training data
+│   ├── CPCTitleList202208/      # Directory containing CPC title lists
 │   ├── data_analysis.py         # Script for training data statistical analysis
 │   ├── labels_data_proc.py      # Script for label data preprocessing
 │   └── data_proc.py             # Script for cleaning raw data and constructing the training dataset
@@ -23,6 +24,7 @@ WIPO-alpha: Available at: https://www.wipo.int/classifications/ipc/en/ITsupport/
 ├── loss.py                      # Implementation of custom loss functions
 ├── models.py                    # Code for model architecture and network structure
 ├── train.py                     # Main script for running training, testing, and calculating evaluation metrics
+
 ```
 
 ## Installation

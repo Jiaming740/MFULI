@@ -2,9 +2,7 @@ import torch.nn as nn
 import torch
 from transformers import AutoModel
 from losses import BCEFocalLoss, HMLC
-from GCN import GraphConvolution
 import math
-import copy
 
 class SelfAttention(nn.Module):
     def __init__(self, dropout=None):
@@ -44,16 +42,11 @@ def get_attention(val_out, dep_embed, adj):
 
 
 class ContrastBert(nn.Module):
-    def __init__(self, config, similarity='jaccard'):
+    def __init__(self, config, similarity='hierarchical_jaccard'):
         super(ContrastBert, self).__init__()
         self.config = config
         self.bert = AutoModel.from_pretrained(config.pretrained_model_path)
         self.dropout = nn.Dropout(config.dropout_prob)
-        if config.GCN:
-            self.dep_type_embedding = nn.Embedding(config.dep_type_num, config.embedding_size, padding_idx=0)
-            self.gcn_mode = GraphConvolution(config.embedding_size, config.embedding_size)
-            self.gcn_layer = nn.ModuleList([copy.deepcopy(self.gcn_mode) for _ in range(config.num_gcn_layers)])
-            self.fc_layer = nn.Linear(self.bert.config.to_dict()['hidden_size']*2, self.bert.config.to_dict()['hidden_size'])
         if config.loss_type == 'CE':
             self.criterion = nn.BCEWithLogitsLoss()
         else:
@@ -61,23 +54,14 @@ class ContrastBert(nn.Module):
         self.contrastive_criterion = HMLC(config, hierarchy_path=config.hierarchy_path, similarity=similarity)
         self.fc = nn.Linear(self.bert.config.to_dict()['hidden_size'], config.num_labels)
 
-    def forward(self, inputs, labels=None, labels_desc_ids=None, dep_type_matrix=None, hierarchy=None):
+    def forward(self, inputs):
         raw_outputs = self.bert(**inputs)
         sequence_output = raw_outputs.last_hidden_state
         text_cls = sequence_output[:, 0, :]  # 取CLS的特征向量
-        device = sequence_output.device
-        if self.config.GCN and dep_type_matrix is not None:
-            dep_type_embedding_outputs = self.dep_type_embedding(dep_type_matrix)
-            dep_adj_matrix = torch.clamp(dep_type_matrix, 0, 1)
-            words_output = sequence_output
-            for i, gcn_layer_module in enumerate(self.gcn_layer):
-                attention_score = get_attention(words_output, dep_type_embedding_outputs, dep_adj_matrix)
-                words_output = gcn_layer_module(words_output, attention_score, dep_type_embedding_outputs)
-            words_output = words_output.mean(dim=1)
-            pooled_output = torch.cat([text_cls, words_output], dim=-1)
-            pooled_output = self.fc_layer(pooled_output)
-        else:
-            pooled_output = text_cls
+
+        pooled_output = text_cls
+
+        return pooled_output
 
         logits = self.fc(self.dropout(pooled_output))
         if labels is not None:

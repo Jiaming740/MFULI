@@ -1,7 +1,4 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
-
+# # -*- coding: utf-8 -*-
 import torch
 import torch.nn as nn
 import pandas as pd
@@ -132,16 +129,7 @@ class HMLC(nn.Module):
 
         for i in range(size):
             for j in range(size):
-                if self.similarity_function == 'jaccard':
-                    mask[i][j] = self.jaccard_similarity(one_hot_labels[i], one_hot_labels[j])
-                elif self.similarity_function == 'cosine':
-                    mask[i][j] = self.cosine_similarity(one_hot_labels[i], one_hot_labels[j])
-                elif self.similarity_function == 'conditional_probability':
-                    mask[i][j] = self.conditional_probability(one_hot_labels[i], one_hot_labels[j])
-                elif self.similarity_function == 'hierarchical_jaccard':
-                    mask[i][j] = self.hierarchical_jaccard(one_hot_labels[i], one_hot_labels[j])
-                else:
-                    raise ValueError("Unknown similarity function: {}".format(self.similarity_function))
+                mask[i][j] = self.hierarchical_jaccard(one_hot_labels[i], one_hot_labels[j])
 
         cumulative_loss = self.sup_con_loss(features, mask=mask)
         return cumulative_loss
@@ -179,9 +167,7 @@ class SupConLoss(nn.Module):
         anchor_dot_contrast = torch.div(
             torch.matmul(anchor_feature, features.T),
             self.temperature).to(device)
-        # print('anchor_dot_contrast:',anchor_dot_contrast)
-        # anchor_dot_contrast = anchor_dot_contrast - torch.diag_embed(torch.diag(anchor_dot_contrast))
-        # for numerical stability
+
         logits_max, _ = torch.max(anchor_dot_contrast, dim=1, keepdim=True)
         logits = anchor_dot_contrast - logits_max.detach()
         logits_mask = torch.scatter(
@@ -191,16 +177,13 @@ class SupConLoss(nn.Module):
             0
         )
         mask = mask * logits_mask  # 把mask对角线的数据设置为0
-        # compute log_prob
         exp_logits = torch.exp(logits) * logits_mask  # 计算除了对角线所有的概率
         log_prob = logits - torch.log(exp_logits.sum(1, keepdim=True) + 1e-12)
-        # print('log_prob:',log_prob)
-        # compute mean of log-likelihood over positive,sum(1)每列求和
         one = torch.ones_like(mask).to(device)
         mask_labels = torch.where(mask > 0, one, mask)
         mean_log_prob_pos = (mask * log_prob).sum(1) / (mask_labels.sum(1)+1e-12)
         loss = -mean_log_prob_pos.mean()
-        # print(loss)
+
         return loss
 
 
@@ -209,26 +192,4 @@ config = type('Config', (object,), {'temp': 0.07})
 
 hierarchy_path = "./data/Hierarchical_label.csv"
 model = HMLC(config, hierarchy_path, similarity='hierarchical_jaccard')
-
-# 标签集
-label_set_1 = ['A01B', 'A01C']
-label_set_2 = ['A01B', 'B01B']
-
-# 将标签集转换为one-hot编码
-one_hot_1 = model.labels_to_one_hot(label_set_1)
-one_hot_2 = model.labels_to_one_hot(label_set_2)
-
-# 计算相似性
-similarity_hierarchical_jaccard = model.hierarchical_jaccard(one_hot_1, one_hot_2)
-print("Hierarchical Jaccard Similarity:", similarity_hierarchical_jaccard)
-
-# 计算其他相似度值
-similarity_jaccard = model.jaccard_similarity(one_hot_1, one_hot_2)
-print("Jaccard Similarity:", similarity_jaccard)
-
-similarity_cosine = model.cosine_similarity(one_hot_1, one_hot_2)
-print("Cosine Similarity:", similarity_cosine)
-
-similarity_conditional_probability = model.conditional_probability(one_hot_1, one_hot_2)
-print("Conditional Probability Similarity:", similarity_conditional_probability)
 

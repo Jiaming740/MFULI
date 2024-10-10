@@ -94,13 +94,11 @@ def main(args):
     save_mode = f"bert_{args.loss_type}.bin"
     if args.Contrast:
         save_mode = 'Contrast_' + save_mode
-    if args.GCN:
-        save_mode = 'GCN_' + save_mode
     if args.LabelEmbedding:
         save_mode = 'LabelEmbedding_' + save_mode
 
     tokenizer = AutoTokenizer.from_pretrained(args.pretrained_model_path)
-    model = ContrastBert(config=args, similarity='jaccard').to(device)
+    model = ContrastBert(config=args, similarity='hierarchical_jaccard').to(device)
 
 
     pre_model = os.path.join(args.output_dir, save_mode)
@@ -223,18 +221,16 @@ if __name__ == '__main__':
                         help="The output directory where the model checkpoints will be written")
     parser.add_argument("--max_seq_length", default=256, type=int, help="max words length")
     parser.add_argument("--batch_size", default=8, type=int, help="train batch size")
-    parser.add_argument("--epochs", default=6, type=int, help="run epochs ")
+    parser.add_argument("--epochs", default=6, type=int, help="run epochs")
     parser.add_argument("--lr", default=1e-5, type=float, help="learning rate")
     parser.add_argument("--do_train", default=True, action='store_true', help="train mode")
     parser.add_argument("--do_test", default=True, action='store_true', help="test mode")
     parser.add_argument("--num_labels", default=62, type=int, help="total labels")
     parser.add_argument('--dropout_prob', default=0.2, type=float, help='drop out probability')
-    parser.add_argument("--num_gcn_layers", default=0, type=int, help="layer")
     parser.add_argument("--embedding_size", default=768, type=int, help="embedding size")
     parser.add_argument("--weight_decay", default=0.00005, type=int, help="weight_decay")
     parser.add_argument('--loss_type', default='CE', type=str, help='FL,CE')
     parser.add_argument('--Contrast', default=True, type=bool, help='Contrastive Learning')
-    parser.add_argument('--GCN', default=False, type=bool, help='GCN of dep')
     parser.add_argument('--LabelEmbedding', default=True, type=bool, help='LabelEmbedding')
     parser.add_argument('--pre_trained', default=True, type=bool, help='load pre_trained model')
     parser.add_argument('--temp', type=float, default=300, help='temperature for loss function')

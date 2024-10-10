@@ -8,7 +8,7 @@ spacy == 3.4.4 – NLP library for advanced tokenization and linguistic features
 ```
 ## Data
 ```
-USTPTO: Available at: http://mleg.cse.sc.edu/DeepPatent (accessed November 9,2022)
+USPTO: Available at: http://mleg.cse.sc.edu/DeepPatent (accessed November 9,2022)
 WIPO-alpha: Available at: https://www.wipo.int/classifications/ipc/en/ITsupport/Categorization/dataset (accessed November 21, 2022)
 ```
 

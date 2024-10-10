@@ -6,6 +6,7 @@ transformers==4.12.5
 spacy==3.4.4 
 ```
 ## Project Structure
+```
 --output: Directory to store the saved models.
 --data/process_data: Directory for storing the training data.
 --data/data_analysis.py: Script for performing statistical analysis on the training data.
@@ -19,3 +20,4 @@ spacy==3.4.4
 --GCN.py: Implementation of Graph Convolutional Networks (GCN).
 --train.py: Main script for running training, testing, and calculating evaluation metrics.
 --bert-base-uncase: You need to pre-download the BERT model (bert-base-uncase) and place it in a directory at the same level as this project. This folder should contain the files vocab.txt, config.json, and pytorch_model.bin.
+```

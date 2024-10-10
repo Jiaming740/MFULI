@@ -1,21 +1,21 @@
-## 使用依赖
+## Dependencies
 ```python
 python ==3.6
 torch==1.7.1
 transformers==4.12.5 
 spacy==3.4.4 
 ```
-## 相关说明
---output：存放保存的模型<br>
---data/process_data：存放训练数据<br>
---data/data_analysis.py：训练数据统计分析脚本<br>
---data/labels_data_proc.py：标签数据预处理<br>
---data/data_proc.py：原始数据清洗过滤，构造训练数据集<br>
---dataset.py：数据预处理成bert所需要的格式<br>
---tnse.py：标签聚类展示
---loss.py：损失函数实现：FocalLoss+对比损失实现<br>
---models.py：模型网络结构代码
---dep_parser.py：依存句法分析依存关系矩阵实现
---GCN.py：图神经网络实现代码
---train.py：主运行程序，包含训练、测试以及相关评价指标的计算<br>
---bert-base-uncase:要预先下载好预训练的bert模型，放在和该项目同级下的bert-base-uncase文件夹下,需要的是vocab.txt、config.json、pytorch_model.bin
+## Project Structure
+--output: Directory to store the saved models.
+--data/process_data: Directory for storing the training data.
+--data/data_analysis.py: Script for performing statistical analysis on the training data.
+--data/labels_data_proc.py: Script for label data preprocessing.
+--data/data_proc.py: Script for cleaning raw data and constructing the training dataset.
+--dataset.py: Script for converting data into the format required by BERT.
+--tnse.py: Script for label clustering visualization.
+--loss.py: Implementation of loss functions, including FocalLoss and contrastive loss.
+--models.py: Code for the model architecture and network structure.
+--dep_parser.py: Implementation of dependency parsing and dependency matrix creation.
+--GCN.py: Implementation of Graph Convolutional Networks (GCN).
+--train.py: Main script for running training, testing, and calculating evaluation metrics.
+--bert-base-uncase: You need to pre-download the BERT model (bert-base-uncase) and place it in a directory at the same level as this project. This folder should contain the files vocab.txt, config.json, and pytorch_model.bin.

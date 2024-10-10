@@ -54,14 +54,15 @@ class ContrastBert(nn.Module):
         self.contrastive_criterion = HMLC(config, hierarchy_path=config.hierarchy_path, similarity=similarity)
         self.fc = nn.Linear(self.bert.config.to_dict()['hidden_size'], config.num_labels)
 
-    def forward(self, inputs):
+    def forward(self, inputs, labels=None, labels_desc_ids=None, dep_type_matrix=None, hierarchy=None):
+
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
         raw_outputs = self.bert(**inputs)
         sequence_output = raw_outputs.last_hidden_state
-        text_cls = sequence_output[:, 0, :]  # 取CLS的特征向量
+        text_cls = sequence_output[:, 0, :]
 
         pooled_output = text_cls
-
-        return pooled_output
 
         logits = self.fc(self.dropout(pooled_output))
         if labels is not None:
@@ -87,16 +88,14 @@ def load_model(model, pre_model_path, device, strict=False):
     pretrained_dict = torch.load(pre_model_path, map_location=device)
     model_dict = model.state_dict()
 
-    # 过滤掉不匹配的键
     filtered_pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict}
     not_loaded_keys = set(pretrained_dict.keys()) - set(filtered_pretrained_dict.keys())
 
     print(f"Keys not loaded: {not_loaded_keys}")
 
-    # 更新现有的 state dict
+
     model_dict.update(filtered_pretrained_dict)
 
-    # 加载新的 state dict
     model.load_state_dict(model_dict, strict=strict)
 
 

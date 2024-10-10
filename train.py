@@ -206,9 +206,6 @@ def main(args):
 
     logger.info("***** evaluation ends *****")
 
-
-
-
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--data_dir", default='./data/', type=str,
@@ -229,7 +226,7 @@ if __name__ == '__main__':
     parser.add_argument('--dropout_prob', default=0.2, type=float, help='drop out probability')
     parser.add_argument("--embedding_size", default=768, type=int, help="embedding size")
     parser.add_argument("--weight_decay", default=0.00005, type=int, help="weight_decay")
-    parser.add_argument('--loss_type', default='CE', type=str, help='FL,CE')
+    parser.add_argument('--loss_type', default='CE', type=str, help='cross_entropy')
     parser.add_argument('--Contrast', default=True, type=bool, help='Contrastive Learning')
     parser.add_argument('--LabelEmbedding', default=True, type=bool, help='LabelEmbedding')
     parser.add_argument('--pre_trained', default=True, type=bool, help='load pre_trained model')

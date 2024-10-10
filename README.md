@@ -25,6 +25,5 @@ WIPO-alpha: Available at: https://www.wipo.int/classifications/ipc/en/ITsupport/
 ├── train.py                     # Main script for running training, testing, and calculating evaluation metrics
 ```
 
-## 
-git clone https://github.com/Jiaming740/MFULI.git
+## git clone https://github.com/Jiaming740/MFULI.git
 

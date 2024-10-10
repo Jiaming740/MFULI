@@ -24,10 +24,11 @@ WIPO-alpha: Available at: https://www.wipo.int/classifications/ipc/en/ITsupport/
 ├── loss.py                      # Implementation of custom loss functions
 ├── models.py                    # Code for model architecture and network structure
 ├── train.py                     # Main script for running training, testing, and calculating evaluation metrics
-
 ```
 
 ## Installation
+```
 To clone this repository, run the following command in your terminal:
 git clone https://github.com/Jiaming740/MFULI.git
+```
 

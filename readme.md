@@ -7,7 +7,6 @@ spacy==3.4.4
 ```
 ## Project Structure
 ```
---output: Directory to store the saved models.
 --data/process_data: Directory for storing the training data.
 --data/data_analysis.py: Script for performing statistical analysis on the training data.
 --data/labels_data_proc.py: Script for label data preprocessing.

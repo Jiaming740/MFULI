@@ -52,7 +52,7 @@ def load_data(mode, tokenizer, label_dict, args):
         dataset = MyDataset(data_df, label_dict, args, label_description=label_description_df)
         dataloader = DataLoader(dataset, batch_size=args.batch_size, collate_fn=collate_fn)
     elif mode == 'dev':
-        file_path = os.path.join(args.data_dir, 'process_data', 'test.tsv')
+        file_path = os.path.join(args.data_dir, 'process_data', 'dev.tsv')
         data_df = pd.read_csv(file_path, encoding='utf-8')
         dataset = MyDataset(data_df, label_dict, args, label_description=label_description_df)
         dataloader = DataLoader(dataset, batch_size=args.batch_size, collate_fn=collate_fn)

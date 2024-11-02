@@ -12,6 +12,10 @@ spacy == 3.4.4 – NLP library for advanced tokenization and linguistic features
 ```
 USPTO: Available at: http://mleg.cse.sc.edu/DeepPatent (accessed November 9,2022)
 WIPO-alpha: Available at: https://www.wipo.int/classifications/ipc/en/ITsupport/Categorization/dataset (accessed November 21, 2022)
+
+The training data needs to be processed into the following format and stored as TSV files:
+patent_id,title,abstract,labels
+9009180,System and method for providing extending searches,"The present invention generally relates to computer and web-based contact searches. Specifically, this invention relates to systems and methods for extending contact searches to include contacts beyond those of the user initiating the search. Embodiments of the present invention allow users to search for indirect contacts beyond their direct contacts by providing the user results that include the contacts of their contacts and so on to a specified depth level and restricted by security implementations selectable by the indirect contacts.","['Y10S', 'H04L', 'G06F']"
 ```
 
 ## Directory Structure

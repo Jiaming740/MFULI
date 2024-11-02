@@ -13,7 +13,6 @@ spacy==3.4.4
 --data/labels_data_proc.py: Script for label data preprocessing.
 --data/data_proc.py: Script for cleaning raw data and constructing the training dataset.
 --dataset.py: Script for converting data into the format required by BERT.
---tnse.py: Script for label clustering visualization.
 --loss.py: Implementation of loss functions, including FocalLoss and contrastive loss.
 --models.py: Code for the model architecture and network structure.
 --train.py: Main script for running training, testing, and calculating evaluation metrics.

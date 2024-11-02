@@ -1,5 +1,5 @@
 # Improving Large-scale Classification in Technology Management: Making Full Use of Label Information for Professional Technical Documents
-This repository implements MFULI model for hierarchical multi-label professional technical document classification. This work has been published as the Research Article "Improving Large-scale Classification in Technology Management: Making Full Use of Label Information for Professional Technical Documents" by the journal of *IEEE Transactions on Engineering Management*. You can download the code for your own research. However, please kindly to cite our paper. For further inquiries, please contact *djm@mail.hfut.edu.cn*.
+This repository implements MFULI model for hierarchical multi-label professional technical document classification. This work has been published as the Research Article "Improving Large-scale Classification in Technology Management: Making Full Use of Label Information for Professional Technical Documents" by the journal of *IEEE Transactions on Engineering Management*. You can download the code for your own research. For any further inquiries, please feel free to contact *djm@mail.hfut.edu.cn*.
 
 ## Dependencies
 ```
@@ -40,6 +40,8 @@ git clone https://github.com/Jiaming740/MFULI.git
 
 ## Citation
 ```
+If you use our code for your research, please kindly be sure to cite our paper. Thank you!
+
 @article{ding2024improving,
   title={Improving Large-Scale Classification in Technology Management: Making Full Use of Label Information for Professional Technical Documents},
   author={Ding, Jiaming and Wang, Anning and Huang, Kenneth Guang-Lih and Zhang, Qiang and Yang, Shanlin},

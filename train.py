@@ -38,13 +38,12 @@ def Validation_test(model, test_dataloader, device, hierarchy, top_ks=[1, 5, 10]
     all_targets = []
     top_k_preds = {k: [] for k in top_ks}
     Loss = 0.0
-    for inputs, targets, labels_desc_ids, dep_type_matrix in test_dataloader:
+    for inputs, targets, labels_desc_ids in test_dataloader:
         inputs = {k: v.to(device) for k, v in inputs.items()}
         targets = targets.to(device)
         labels_desc_ids = {k: v.to(device) for k, v in labels_desc_ids.items()}
-        dep_type_matrix = dep_type_matrix.to(device)
         with torch.no_grad():
-            logits, loss, _ = model(inputs, labels=targets, labels_desc_ids=labels_desc_ids, dep_type_matrix=dep_type_matrix, hierarchy=hierarchy)
+            logits, loss, _ = model(inputs, labels=targets, labels_desc_ids=labels_desc_ids, hierarchy=hierarchy)
         # Move logits and labels to CPU
         outputs = torch.sigmoid(logits).cpu().detach().numpy()
         outputs_binary = (outputs > 0.5).astype(int)
@@ -132,14 +131,13 @@ def main(args):
             total_steps = len(train_dataloader)
             # Tracking variables
             num_epoch += 1
-            for inputs, targets, labels_desc_ids, dep_type_matrix in train_dataloader:
+            for inputs, targets, labels_desc_ids in train_dataloader:
                 model.train()
                 inputs = {k: v.to(device) for k, v in inputs.items()}
                 targets = targets.to(device)
                 labels_desc_ids = {k: v.to(device) for k, v in labels_desc_ids.items()}
-                dep_type_matrix = dep_type_matrix.to(device)
                 optimizer.zero_grad()
-                logits, loss, _ = model(inputs, labels=targets, labels_desc_ids=labels_desc_ids, dep_type_matrix=dep_type_matrix, hierarchy=hierarchy)
+                logits, loss, _ = model(inputs, labels=targets, labels_desc_ids=labels_desc_ids, hierarchy=hierarchy)
                 loss.backward()
                 optimizer.step()
                 tr_loss += loss.item()  # 确保是标量

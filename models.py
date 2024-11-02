@@ -54,7 +54,7 @@ class ContrastBert(nn.Module):
         self.contrastive_criterion = HMLC(config, hierarchy_path=config.hierarchy_path, similarity=similarity)
         self.fc = nn.Linear(self.bert.config.to_dict()['hidden_size'], config.num_labels)
 
-    def forward(self, inputs, labels=None, labels_desc_ids=None, dep_type_matrix=None, hierarchy=None):
+    def forward(self, inputs, labels=None, labels_desc_ids=None, hierarchy=None):
 
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 

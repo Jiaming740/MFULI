@@ -9,7 +9,6 @@ from torch.utils.data.sampler import Sampler
 from torch.utils.data import Dataset, DataLoader
 import random
 import spacy
-from dep_parser import *
 nlp = spacy.load("en_core_web_sm")
 
 
@@ -92,7 +91,7 @@ class HierarchicalBatchSampler(Sampler):
             idx = indices[torch.randint(len(indices), (1,))]
             batch.append(idx)
             visited.add(idx)
-            tokens, label_id, labels, labels_desc_list, dep_type_matrix = self.dataset[idx]
+            tokens, label_id, labels, labels_desc_list = self.dataset[idx]
             labels_index = self.random_unvisited_sample(labels, labels_index_dict, visited, remaining)
             batch.extend([labels_index])
             visited.update([labels_index])
@@ -127,8 +126,6 @@ def data_processors(raw_data, label_dict, args, label_description=None):
             labels = eval(row['labels'])
             label_id = [0] * len(label_dict)
             labels_desc_list = []
-            dep_instance_parser = DepInstanceParser(basicDependencies=doc, tokens=tokens)
-            dep_type_matrix = dep_instance_parser.get_adj_with_value_matrix(args.max_seq_length)
             for label in labels:
                 if label not in labels_index:
                     labels_index[label] = [index]
@@ -139,7 +136,7 @@ def data_processors(raw_data, label_dict, args, label_description=None):
                 labels_desc = label_description[label_description['Subclass'] == label]['labels_desc'].values[0]
                 labels_desc_list.extend(labels_desc.split(' '))
 
-            dataset_list.append((tokens, label_id, labels, labels_desc_list, dep_type_matrix))
+            dataset_list.append((tokens, label_id, labels, labels_desc_list))
         except Exception as e:
             print(e)
             continue
@@ -147,7 +144,7 @@ def data_processors(raw_data, label_dict, args, label_description=None):
 
 
 def my_collate(batch, tokenizer, args):
-    tokens, label_ids, labels, labels_desc_list, dep_type_matrix = map(list, zip(*batch))
+    tokens, label_ids, labels, labels_desc_list = map(list, zip(*batch))
     text_ids = tokenizer(tokens,
                          padding='max_length',
                          truncation=True,
@@ -163,8 +160,7 @@ def my_collate(batch, tokenizer, args):
                          add_special_tokens=True,
                          return_tensors='pt')
     label_ids = torch.tensor(label_ids, dtype=torch.float)
-    dep_type_matrix = torch.tensor(dep_type_matrix, dtype=torch.long)
-    return text_ids, label_ids, labels_desc_ids, dep_type_matrix
+    return text_ids, label_ids, labels_desc_ids
 
 
 class MyDataset(Dataset):

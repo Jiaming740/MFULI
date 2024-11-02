@@ -40,7 +40,7 @@ git clone https://github.com/Jiaming740/MFULI.git
 
 ## Citation
 ```
-If you use our code for your research, please kindly be sure to cite our paper. Thank you!
+If you use our code for your research, please kindly cite our paper. Thank you!
 
 @article{ding2024improving,
   title={Improving Large-Scale Classification in Technology Management: Making Full Use of Label Information for Professional Technical Documents},

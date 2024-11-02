@@ -58,7 +58,7 @@ def data_split(data):
     leng1 = int(len(data_df)*0.9)
     train_df = data_df[:leng]
     test_df = data_df[leng:leng1]
-    test_df = data_df[leng1:]
+    dev_df = data_df[leng1:]
     
     labels_list_new = []
     for index, row in train_df.iterrows():

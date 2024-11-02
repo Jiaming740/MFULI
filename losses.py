@@ -12,8 +12,7 @@ class BCEFocalLoss(torch.nn.Module):
         self.reduction = reduction
 
     def forward(self, predict, target):
-        pt = torch.sigmoid(predict)  # sigmoide获取概率
-        # 在原始ce上增加动态权重因子，注意alpha的写法，下面多类时不能这样使用
+        pt = torch.sigmoid(predict) 
         loss = - self.alpha * (1 - pt) ** self.gamma * target * torch.log(pt) - \
                (1 - self.alpha) * pt ** self.gamma * (1 - target) * torch.log(1 - pt)
 

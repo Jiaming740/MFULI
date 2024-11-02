@@ -16,8 +16,6 @@ spacy==3.4.4
 --tnse.py: Script for label clustering visualization.
 --loss.py: Implementation of loss functions, including FocalLoss and contrastive loss.
 --models.py: Code for the model architecture and network structure.
---dep_parser.py: Implementation of dependency parsing and dependency matrix creation.
---GCN.py: Implementation of Graph Convolutional Networks (GCN).
 --train.py: Main script for running training, testing, and calculating evaluation metrics.
 --bert-base-uncase: You need to pre-download the BERT model (bert-base-uncase) and place it in a directory at the same level as this project. This folder should contain the files vocab.txt, config.json, and pytorch_model.bin.
 ```

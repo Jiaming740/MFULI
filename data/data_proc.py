@@ -55,8 +55,11 @@ def data_split(data):
     from sklearn.utils import shuffle
     data_df = shuffle(data)
     leng = int(len(data_df)*0.8)
+    leng1 = int(len(data_df)*0.9)
     train_df = data_df[:leng]
-    test_df = data_df[leng:]
+    test_df = data_df[leng:leng1]
+    test_df = data_df[leng1:]
+    
     labels_list_new = []
     for index, row in train_df.iterrows():
         labels = eval(row['labels'])
@@ -67,6 +70,7 @@ def data_split(data):
     print('训练集各个标签出现的次数:',len(result_new), result_new)
     train_df.to_csv('./process_data/train.tsv', index=False)
     test_df.to_csv('./process_data/test.tsv', index=False)
+    dev_df.to_csv('./process_data/dev.tsv', index=False)
 
 
 if __name__ == "__main__":

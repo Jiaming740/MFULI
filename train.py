@@ -44,7 +44,6 @@ def Validation_test(model, test_dataloader, device, hierarchy, top_ks=[1, 5, 10]
         labels_desc_ids = {k: v.to(device) for k, v in labels_desc_ids.items()}
         with torch.no_grad():
             logits, loss, _ = model(inputs, labels=targets, labels_desc_ids=labels_desc_ids, hierarchy=hierarchy)
-        # Move logits and labels to CPU
         outputs = torch.sigmoid(logits).cpu().detach().numpy()
         outputs_binary = (outputs > 0.5).astype(int)
 

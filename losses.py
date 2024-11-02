@@ -12,7 +12,7 @@ class BCEFocalLoss(torch.nn.Module):
         self.reduction = reduction
 
     def forward(self, predict, target):
-        pt = torch.sigmoid(predict) 
+        pt = torch.sigmoid(predict)
         loss = - self.alpha * (1 - pt) ** self.gamma * target * torch.log(pt) - \
                (1 - self.alpha) * pt ** self.gamma * (1 - target) * torch.log(1 - pt)
 

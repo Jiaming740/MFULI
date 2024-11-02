@@ -23,7 +23,7 @@ WIPO-alpha: Available at: https://www.wipo.int/classifications/ipc/en/ITsupport/
 │   ├── labels_data_proc.py      # Script for label data preprocessing
 │   └── data_proc.py             # Script for cleaning raw data and constructing the training dataset
 ├── dataset.py                   # Script to convert data into the format required by BERT
-├── loss.py                      # Implementation of custom loss functions
+├── losses.py                      # Implementation of custom loss functions
 ├── models.py                    # Code for model architecture and network structure
 ├── train.py                     # Main script for running training, testing, and calculating evaluation metrics
 ```

@@ -24,7 +24,7 @@ class BCEFocalLoss(torch.nn.Module):
         return loss
 
 class HMLC(nn.Module):
-    def __init__(self, config, hierarchy_path, similarity='jaccard'):
+    def __init__(self, config, hierarchy_path, similarity='hierarchical_jaccard'):
         super(HMLC, self).__init__()
         self.temperature = config.temp
         self.config = config
@@ -90,34 +90,6 @@ class HMLC(nn.Module):
             return torch.tensor(0.0)
         else:
             return torch.tensor(intersection / union)
-
-    def jaccard_similarity(self, set1, set2):
-        set1 = set1.bool()
-        set2 = set2.bool()
-        intersection = (set1 & set2).float().sum()
-        union = (set1 | set2).float().sum()
-        if union == 0:
-            return 0.0
-        else:
-            return intersection / union
-
-    def cosine_similarity(self, set1, set2):
-        dot_product = (set1 * set2).float().sum()
-        norm1 = torch.sqrt((set1 * set1).float().sum())
-        norm2 = torch.sqrt((set2 * set2).float().sum())
-        if norm1 * norm2 == 0:
-            return 0.0
-        else:
-            return dot_product / (norm1 * norm2)
-
-    def conditional_probability(self, set1, set2):
-        set1 = set1.bool()
-        set2 = set2.bool()
-        intersection = (set1 & set2).float().sum()
-        if set1.float().sum() == 0:
-            return 0.0
-        probability = intersection / set1.float().sum()
-        return probability
 
     def forward(self, features, labels):
         device = features.device

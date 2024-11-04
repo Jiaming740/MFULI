@@ -2,23 +2,6 @@
 This repository implements MFULI model for hierarchical multi-label professional technical document classification. This work has been published as the Research Article "Improving Large-scale Classification in Technology Management: Making Full Use of Label Information for Professional Technical Documents" by the journal of *IEEE Transactions on Engineering Management*. You can download the code for your own research. For any further inquiries, please feel free to contact Jiaming Ding (email: *djm@mail.hfut.edu.cn*) .
 
 
-## Dependencies
-```
-Python == 3.6 – The project is compatible with Python 3.6.
-torch == 1.7.1 – PyTorch library for building and training deep learning models.
-transformers == 4.12.5 – Hugging Face's library for pre-trained transformer models like BERT.
-spacy == 3.4.4 – NLP library for advanced tokenization and linguistic features.
-```
-## Data
-```
-USPTO: Available at: http://mleg.cse.sc.edu/DeepPatent (accessed November 9,2022)
-WIPO-alpha: Available at: https://www.wipo.int/classifications/ipc/en/ITsupport/Categorization/dataset (accessed November 21, 2022)
-
-The training data needs to be processed into the following format and stored as TSV files:
-patent_id,title,abstract,labels
-9009180,System and method for providing extending searches,"The present invention generally relates to computer and web-based contact searches. Specifically, this invention relates to systems and methods for extending contact searches to include contacts beyond those of the user initiating the search. Embodiments of the present invention allow users to search for indirect contacts beyond their direct contacts by providing the user results that include the contacts of their contacts and so on to a specified depth level and restricted by security implementations selectable by the indirect contacts.","['Y10S', 'H04L', 'G06F']"
-```
-
 ## Directory Structure
 ```
 ├── data/                        # Directory for data-related scripts and files
@@ -31,6 +14,24 @@ patent_id,title,abstract,labels
 ├── losses.py                      # Implementation of custom loss functions
 ├── models.py                    # Code for model architecture and network structure
 ├── train.py                     # Main script for running training, testing, and calculating evaluation metrics
+```
+
+## Dependencies
+```
+Python == 3.6 – The project is compatible with Python 3.6.
+torch == 1.7.1 – PyTorch library for building and training deep learning models.
+transformers == 4.12.5 – Hugging Face's library for pre-trained transformer models like BERT.
+spacy == 3.4.4 – NLP library for advanced tokenization and linguistic features.
+```
+
+## Data
+```
+USPTO: Available at: http://mleg.cse.sc.edu/DeepPatent (accessed November 9,2022)
+WIPO-alpha: Available at: https://www.wipo.int/classifications/ipc/en/ITsupport/Categorization/dataset (accessed November 21, 2022)
+
+The training data needs to be processed into the following format and stored as TSV files:
+patent_id,title,abstract,labels
+9009180,System and method for providing extending searches,"The present invention generally relates to computer and web-based contact searches. Specifically, this invention relates to systems and methods for extending contact searches to include contacts beyond those of the user initiating the search. Embodiments of the present invention allow users to search for indirect contacts beyond their direct contacts by providing the user results that include the contacts of their contacts and so on to a specified depth level and restricted by security implementations selectable by the indirect contacts.","['Y10S', 'H04L', 'G06F']"
 ```
 
 ## Installation

@@ -100,10 +100,8 @@ def main(args):
 
 
     pre_model = os.path.join(args.output_dir, save_mode)
-    try:
-        load_model(model, pre_model, device, strict=False)
-    except RuntimeError as e:
-        print(f"RuntimeError: {e}")
+    if args.pre_trained and os.path.exists(pre_model):
+        logger.info("Pre-trained model found, but starting training from scratch as requested.")
 
     if os.path.exists(pre_model) and args.pre_trained:
         model.load_state_dict(torch.load(pre_model, map_location=device), strict=False)
@@ -214,7 +212,7 @@ if __name__ == '__main__':
     parser.add_argument("--output_dir", default='./output/', type=str,
                         help="The output directory where the model checkpoints will be written")
     parser.add_argument("--max_seq_length", default=256, type=int, help="max words length")
-    parser.add_argument("--batch_size", default=8, type=int, help="train batch size")
+    parser.add_argument("--batch_size", default=32, type=int, help="train batch size")
     parser.add_argument("--epochs", default=6, type=int, help="run epochs")
     parser.add_argument("--lr", default=1e-5, type=float, help="learning rate")
     parser.add_argument("--do_train", default=True, action='store_true', help="train mode")
@@ -226,7 +224,7 @@ if __name__ == '__main__':
     parser.add_argument('--loss_type', default='CE', type=str, help='cross_entropy')
     parser.add_argument('--Contrast', default=True, type=bool, help='Contrastive Learning')
     parser.add_argument('--LabelEmbedding', default=True, type=bool, help='LabelEmbedding')
-    parser.add_argument('--pre_trained', default=True, type=bool, help='load pre_trained model')
+    parser.add_argument('--pre_trained', default=False, type=bool, help='load pre_trained model')
     parser.add_argument('--temp', type=float, default=300, help='temperature for loss function')
     args = parser.parse_args()
     main(args)

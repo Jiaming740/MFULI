@@ -47,41 +47,35 @@ class ContrastBert(nn.Module):
         self.config = config
         self.bert = AutoModel.from_pretrained(config.pretrained_model_path)
         self.dropout = nn.Dropout(config.dropout_prob)
-        if config.loss_type == 'CE':
-            self.criterion = nn.BCEWithLogitsLoss()
-        else:
-            self.criterion = BCEFocalLoss()
+        self.criterion = nn.BCEWithLogitsLoss() if config.loss_type == 'CE' else BCEFocalLoss()
         self.contrastive_criterion = HMLC(config, hierarchy_path=config.hierarchy_path, similarity=similarity)
-        self.fc = nn.Linear(self.bert.config.to_dict()['hidden_size'], config.num_labels)
+        self.fc = nn.Linear(self.bert.config.hidden_size, config.num_labels)
 
     def forward(self, inputs, labels=None, labels_desc_ids=None, hierarchy=None):
-
-        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
+        device = inputs['input_ids'].device
         raw_outputs = self.bert(**inputs)
         sequence_output = raw_outputs.last_hidden_state
         text_cls = sequence_output[:, 0, :]
 
-        pooled_output = text_cls
+        logits = self.fc(self.dropout(text_cls))
 
-        logits = self.fc(self.dropout(pooled_output))
+        loss = 0.0
         if labels is not None:
+            labels = labels.to(device)
             loss = self.criterion(logits, labels)
             if self.config.Contrast:
-                contrastive_loss = self.contrastive_criterion(sequence_output.to(device), labels.to(device))
+                contrastive_loss = self.contrastive_criterion(sequence_output, labels)
                 loss += contrastive_loss
             if self.config.LabelEmbedding and labels_desc_ids is not None:
                 labels_outputs = self.bert(**labels_desc_ids)
-                labels_hiddens = labels_outputs.last_hidden_state
-                labels_cls = labels_hiddens[:, 0, :]
+                labels_cls = labels_outputs.last_hidden_state[:, 0, :]
                 mask = inputs['attention_mask']
                 attention = SelfAttention(dropout=0.2)
-                output, attn = attention(sequence_output, labels_cls.unsqueeze(1).to(device), sequence_output, mask=mask)
+                output, _ = attention(sequence_output, labels_cls.unsqueeze(1), sequence_output, mask=mask)
                 sample_logits = self.fc(self.dropout(output))
                 sample_loss = self.criterion(sample_logits, labels)
                 loss += 0.1 * sample_loss
-            return logits, loss, pooled_output
-        return logits, 0.0
+        return logits, loss, text_cls
 
 
 def load_model(model, pre_model_path, device, strict=False):
@@ -91,11 +85,10 @@ def load_model(model, pre_model_path, device, strict=False):
     filtered_pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict}
     not_loaded_keys = set(pretrained_dict.keys()) - set(filtered_pretrained_dict.keys())
 
-    print(f"Keys not loaded: {not_loaded_keys}")
-
+    if not_loaded_keys:
+        print(f"Keys not loaded: {not_loaded_keys}")
 
     model_dict.update(filtered_pretrained_dict)
-
     model.load_state_dict(model_dict, strict=strict)
 
 

@@ -1,7 +1,7 @@
-# # -*- coding: utf-8 -*-
 import torch
 import torch.nn as nn
 import pandas as pd
+from functools import lru_cache
 
 
 class BCEFocalLoss(torch.nn.Module):
@@ -22,6 +22,7 @@ class BCEFocalLoss(torch.nn.Module):
             loss = torch.sum(loss)
         return loss
 
+
 class HMLC(nn.Module):
     def __init__(self, config, hierarchy_path, similarity='hierarchical_jaccard'):
         super(HMLC, self).__init__()
@@ -32,6 +33,7 @@ class HMLC(nn.Module):
         self.sup_con_loss = SupConLoss(self.temperature)
         self.max_depth = max([self.hierarchy[label]['depth'] for label in self.hierarchy])
         self.all_labels = list(self.hierarchy.keys())
+        self.label_to_index = {label: idx for idx, label in enumerate(self.all_labels)}
 
     @staticmethod
     def load_hierarchy(hierarchy_path):
@@ -53,14 +55,7 @@ class HMLC(nn.Module):
             add_node(section, class_, subclass)
         return hierarchy
 
-    def labels_to_one_hot(self, label_set):
-        label_to_index = {label: idx for idx, label in enumerate(self.hierarchy.keys())}
-        one_hot = torch.zeros(len(self.hierarchy), dtype=torch.float)
-        for label in label_set:
-            if label in label_to_index:
-                one_hot[label_to_index[label]] = 1
-        return one_hot
-
+    @lru_cache(maxsize=None)
     def get_path_to_root(self, label):
         path = []
         while label is not None:
@@ -68,60 +63,63 @@ class HMLC(nn.Module):
             label = self.hierarchy[label]['parent']
         return path
 
-    def hierarchical_jaccard(self, set1, set2):
-        set1_labels = [list(self.hierarchy.keys())[i] for i in range(len(set1)) if set1[i] == 1]
-        set2_labels = [list(self.hierarchy.keys())[i] for i in range(len(set2)) if set2[i] == 1]
-
-        def get_all_hierarchy_labels(label_set):
-            all_labels = set()
+    def labels_to_one_hot(self, labels_batch):
+        batch_size = len(labels_batch)
+        one_hot = torch.zeros((batch_size, len(self.hierarchy)), dtype=torch.float)
+        for i, label_set in enumerate(labels_batch):
             for label in label_set:
-                path = self.get_path_to_root(label)
-                all_labels.update(path)
-            return all_labels
+                if label in self.label_to_index:
+                    one_hot[i, self.label_to_index[label]] = 1
+        return one_hot
 
-        set1_hierarchy_labels = get_all_hierarchy_labels(set1_labels)
-        set2_hierarchy_labels = get_all_hierarchy_labels(set2_labels)
+    def hierarchical_jaccard_batch(self, one_hot_labels):
+        batch_size = one_hot_labels.size(0)
 
-        intersection = len(set1_hierarchy_labels.intersection(set2_hierarchy_labels))
-        union = len(set1_hierarchy_labels.union(set2_hierarchy_labels))
+        hierarchical_paths = [set() for _ in range(batch_size)]
+        for i in range(batch_size):
+            labels = [self.all_labels[idx] for idx in torch.nonzero(one_hot_labels[i], as_tuple=True)[0]]
+            for label in labels:
+                hierarchical_paths[i].update(self.get_path_to_root(label))
 
-        if union == 0:
-            return torch.tensor(0.0)
-        else:
-            return torch.tensor(intersection / union)
+        intersection_matrix = torch.zeros((batch_size, batch_size), dtype=torch.float)
+        union_matrix = torch.zeros((batch_size, batch_size), dtype=torch.float)
+
+        for i in range(batch_size):
+            for j in range(i, batch_size):
+                set1 = hierarchical_paths[i]
+                set2 = hierarchical_paths[j]
+                intersection = len(set1.intersection(set2))
+                union = len(set1.union(set2))
+                similarity = intersection / union if union != 0 else 0.0
+                intersection_matrix[i, j] = similarity
+                intersection_matrix[j, i] = similarity
+
+        return intersection_matrix
 
     def forward(self, features, labels):
         device = features.device
-        features = features.to(device)
-        size = len(labels)
-        mask = torch.zeros((size, size), dtype=torch.float).to(device)
 
-        one_hot_labels = torch.stack([self.labels_to_one_hot(label_set).to(device) for label_set in labels])
+        one_hot_labels = self.labels_to_one_hot(labels).to(device)
 
-        for i in range(size):
-            for j in range(size):
-                mask[i][j] = self.hierarchical_jaccard(one_hot_labels[i], one_hot_labels[j])
+        mask = self.hierarchical_jaccard_batch(one_hot_labels).to(device)
 
         cumulative_loss = self.sup_con_loss(features, mask=mask)
         return cumulative_loss
 
-class SupConLoss(nn.Module):
-    """Supervised Contrastive Learning: https://arxiv.org/pdf/2004.11362.pdf.
-    It also supports the unsupervised contrastive loss in SimCLR"""
 
+class SupConLoss(nn.Module):
     def __init__(self, temperature=0.07):
         super(SupConLoss, self).__init__()
         self.temperature = temperature
 
     def forward(self, features, labels=None, mask=None):
-
         if len(features.shape) < 2:
             raise ValueError('`features` needs to be [bsz, ...],'
                              'at least 2 dimensions are required')
         if len(features.shape) > 2:
             features = features.view(features.shape[0], -1)
 
-        device = features.device  # 获取 features 所在设备
+        device = features.device
         batch_size = features.shape[0]
         if labels is not None and mask is not None:
             raise ValueError('Cannot define both `labels` and `mask`')
@@ -134,6 +132,7 @@ class SupConLoss(nn.Module):
             mask = torch.eq(labels, labels.T).float().to(device)
         else:
             mask = mask.float().to(device)
+
         anchor_feature = features
         anchor_dot_contrast = torch.div(
             torch.matmul(anchor_feature, features.T),
@@ -141,26 +140,28 @@ class SupConLoss(nn.Module):
 
         logits_max, _ = torch.max(anchor_dot_contrast, dim=1, keepdim=True)
         logits = anchor_dot_contrast - logits_max.detach()
+
         logits_mask = torch.scatter(
             torch.ones_like(mask).to(device),
             1,
             torch.arange(batch_size).view(-1, 1).to(device),
             0
         )
-        mask = mask * logits_mask  # 把mask对角线的数据设置为0
-        exp_logits = torch.exp(logits) * logits_mask  # 计算除了对角线所有的概率
+        mask = mask * logits_mask
+        exp_logits = torch.exp(logits) * logits_mask
         log_prob = logits - torch.log(exp_logits.sum(1, keepdim=True) + 1e-12)
+
         one = torch.ones_like(mask).to(device)
         mask_labels = torch.where(mask > 0, one, mask)
-        mean_log_prob_pos = (mask * log_prob).sum(1) / (mask_labels.sum(1)+1e-12)
+        mean_log_prob_pos = (mask * log_prob).sum(1) / (mask_labels.sum(1) + 1e-12)
+
         loss = -mean_log_prob_pos.mean()
 
         return loss
 
 
-# Test
 config = type('Config', (object,), {'temp': 0.07})
-
 hierarchy_path = "./data/Hierarchical_label.csv"
 model = HMLC(config, hierarchy_path, similarity='hierarchical_jaccard')
+
 

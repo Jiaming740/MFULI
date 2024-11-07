@@ -44,11 +44,13 @@ git clone https://github.com/Jiaming740/MFULI.git
 ```
 If you think the code is useful in your research, please kindly consider to refer:
 
-@article{ding2024improving,
-  title={Improving Large-Scale Classification in Technology Management: Making Full Use of Label Information for Professional Technical Documents},
+@ARTICLE{10720519,
   author={Ding, Jiaming and Wang, Anning and Huang, Kenneth Guang-Lih and Zhang, Qiang and Yang, Shanlin},
-  journal={IEEE Transactions on Engineering Management},
+  journal={IEEE Transactions on Engineering Management}, 
+  title={Improving Large-Scale Classification in Technology Management: Making Full Use of Label Information for Professional Technical Documents}, 
   year={2024},
-  publisher={IEEE}
-}
+  volume={71},
+  number={},
+  pages={15188-15208},
+  doi={10.1109/TEM.2024.3481439}}
 ```
